@@ -1,0 +1,31 @@
+{
+    "name": "Fake Or Fact",
+    "short_name": "Fake Or Fact",
+    "start_url": "/index.html",
+    "display": "standalone",
+    "background_color": "#fdfdfd",
+    "theme_color": "#41b883",
+    "orientation": "portrait-primary",
+    "icons": [
+      {
+        "src": "img/fake-or-fact-icon-72.png",
+        "type": "image/png", "sizes": "72x72",
+        "purpose": "any"
+      },
+      {
+        "src": "/img/fake-or-fact-icon-192.png",
+        "type": "image/png", "sizes": "192x192",
+        "purpose": "any"
+      },
+      {
+        "src": "/img/fake-or-fact-icon-256.png",
+        "type": "image/png", "sizes": "256x256",
+        "purpose": "any"
+      },
+      {
+        "src": "/img/fake-or-fact-icon-512.png",
+        "type": "image/png", "sizes": "512x512",
+        "purpose": "any"
+      }
+    ]
+  }

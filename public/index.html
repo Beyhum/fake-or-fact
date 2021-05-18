@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta content="text/html; charset=utf-8" />
+    <title>Fake Or Fact</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet" />
+    <link href="css/app.css" rel="stylesheet" />
+
+    <link rel="manifest" href="manifest.json" />
+    <!-- ios support -->
+    <link rel="apple-touch-icon" href="img/fake-or-fact-icon-72.png" />
+    <link rel="apple-touch-icon" href="img/fake-or-fact-icon-192.png" />
+    <link rel="apple-touch-icon" href="img/fake-or-fact-icon-256.png" />
+    <link rel="apple-touch-icon" href="img/fake-or-fact-icon-512.png" />
+    <meta name="apple-mobile-web-app-status-bar" content="#41b883" />
+    <meta name="theme-color" content="#41b883" />
+</head>
+
+<body>
+
+    <div id="app">
+        <nav id="nav-title" class="navbar navbar-expand-md navbar-dark bg-primary mb-4">
+            <img src="img/fake-or-fact-icon-white.png" class="navbar-brand" width="50" height="50"
+                style="padding: 0px; margin: -15px;" />
+            <div class="navbar-brand ml-auto" id="score">Score: {{score}}</div>
+        </nav>
+        <main v-cloak role="main" class="container-fluid">
+            <div class="row">
+                <div class="col-12 col-lg-8 offset-lg-2">
+                    <div class="card">
+                        <div v-if="current.Title" class="card-body">
+                            <h3 class="card-title">{{decodeEscapedChars(current.Title)}}</h3>
+                            <a v-if="!answerRevealed" href="#" v-on:click="pickAnswer(false)"
+                                class="btn-lg btn-danger">Fake</a>
+                            <a v-if="!answerRevealed" href="#" v-on:click="pickAnswer(true)"
+                                class="btn-lg btn-primary">Fact</a>
+                            <a v-if="answerRevealed" href="#" v-on:click="getNext()"
+                                class="btn-lg btn-secondary">Next</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-8 offset-lg-2">
+                    <transition name="fade">
+                        <div id="answer" v-if="answerRevealed" class="card-group">
+                            <div v-bind:class="{'bg-primary': answerIsCorrect, 'bg-danger': !answerIsCorrect}"
+                                class="card text-white bg-primary mb-3">
+                                <h4 class="card-header">You got it {{answerIsCorrect ? "Right" : "Wrong"}}!
+                                    <br>According to '{{current.PublisherName}}',<br> it's
+                                    {{current.IsFact ? "true" : "false"}}
+                                </h4>
+                                <div class="card-body">
+                                    <h6>Read the full article:</h6>
+                                    <a class="text-white" v-bind:href="current.URL" target="_blank">{{current.URL}}</a>
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+
+            </div>
+            <div id="gif-container" class="row">
+                <img id="current-gif" v-bind:class="{'gif-hide': !gifShown, 'gif-show': gifShown}"
+                    v-bind:src="gifUrl" />
+            </div>
+        </main>
+
+    </div>
+    <div id="github-link">
+        <a href="https://github.com/Beyhum/fake-or-fact/" target="_blank">View on Github</a>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-resource@1.5.1"></script>
+    <script type="text/javascript">
+        var app = new Vue({
+            el: "#app",
+            data: {
+                current: {},
+                articles: [],
+                answer: {
+                    IsFact: false
+                },
+                answerRevealed: false,
+                gifShown: false,
+                gifUrl: "",
+                gifs: ["gif/nope-hillary.gif", "gif/trump-fake.gif", "gif/trump-wrong.gif", "gif/fake-colbert.gif"],
+                before: "",
+                updatingArticles: false,
+                score: 0,
+                wrongAnswers: 0
+            },
+            methods: {
+                getNext: function () {
+                    let indexOfNext = Math.floor(Math.random(0) * this.articles.length);
+                    this.answerRevealed = false;
+                    this.current = this.articles.splice(indexOfNext, 1)[0];
+
+                    if (this.articles.length < 20) {
+                        if (!this.updatingArticles) {
+                            this.updatingArticles = true;
+                            // always remove some articles to avoid feed from being completely stale on refreshes
+                            this.articles.splice(0, 10);
+                            this.loadArticles(this.before).catch(() => { }).then(resp => { this.updatingArticles = false; });
+                        }
+                    }
+                },
+                loadArticles: function (before = "") {
+                    return this.$http.get(`/api/claims?before=${before}`).then(response => {
+                        response.body.forEach(article => this.articles.push(article));
+                        this.before = this.articles[this.articles.length - 1].ReviewedAt;
+                    });
+                },
+                pickAnswer: function (boolAnswer) {
+                    this.answer.IsFact = boolAnswer;
+                    this.answerRevealed = true;
+                    this.answerIsCorrect ? this.score++ : this.score -= 2;
+                    if (!this.answerIsCorrect) {
+                        this.wrongAnswers++;
+                        if (this.wrongAnswers === 1) {
+                            // preload gif
+                            let preloadedGif = new Image();
+                            preloadedGif.src = this.nextGifUrl();
+                        }
+                        if (this.wrongAnswers === 2) {
+                            this.showGif();
+                            this.wrongAnswers = 0;
+                        }
+                    }
+
+                },
+                showGif: function () {
+                    this.gifUrl = this.nextGifUrl();
+                    this.gifShown = true;
+                    setTimeout(() => {
+                        this.gifShown = false;
+                    }, 1500);
+                },
+                nextGifUrl: function () {
+                    let indexOfNextGif = (this.gifs.indexOf(this.gifUrl) + 1) % this.gifs.length;
+                    return this.gifs[indexOfNextGif];
+                },
+                decodeEscapedChars: function (text) {
+                    return text.replace(/&#(\d+);/g, function (match, matchedCodePoint) {
+                        return String.fromCharCode(matchedCodePoint);
+                    });
+                }
+            },
+            computed: {
+                answerIsCorrect: function () {
+                    return this.current.IsFact === this.answer.IsFact;
+                }
+            },
+            mounted: function () {
+                this.loadArticles().then(resp => {
+                    this.getNext();
+                });
+                if ("serviceWorker" in navigator) {
+                    window.addEventListener("load", function () {
+                        navigator.serviceWorker
+                            .register("/serviceworker.js")
+                            .then(res => console.log("Service worker registered"))
+                            .catch(err => console.log("Failed to register service worker", err));
+                        navigator.serviceWorker.ready.then(registration => {
+                            registration.active.postMessage("refresh");
+                        });
+                    })
+                }
+            }
+
+        })
+    </script>
+</body>
+
+</html>
